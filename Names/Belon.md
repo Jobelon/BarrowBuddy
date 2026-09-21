@@ -1,1 +1,1 @@
-HI Everyone I am Jobelon Mahinay, 
+I am Jobelon Mahinay, haha
