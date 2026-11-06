@@ -5,6 +5,7 @@ import { ProfileFields, SubmitButton } from './AuthFields'
 import { AuthLayout } from './AuthLayout'
 import { profileColumns, readProfile } from './auth'
 import type { ProfileDetails } from './auth'
+import { StudentArea } from './StudentArea'
 
 type ProfileState =
   | { kind: 'loading' }
@@ -98,6 +99,11 @@ export function AccountPage({ client, user }: { client: SupabaseClient; user: Us
     window.location.replace('/login')
   }
 
+  if (status.kind === 'complete') {
+    return <StudentArea client={client} user={user} profile={status.profile} onSignOut={signOut}
+      signingOut={busy} signOutError={error} onProfileSaved={(profile) => setStatus({ kind: 'complete', profile })} />
+  }
+
   return (
     <AuthLayout scene="pass">
       {status.kind === 'loading' && <p role="status">Opening your student profile…</p>}
@@ -108,11 +114,6 @@ export function AccountPage({ client, user }: { client: SupabaseClient; user: Us
           setStatus({ kind: 'loading' })
           setAttempt(attempt + 1)
         }}>Retry</button>
-      </>}
-      {status.kind === 'complete' && <>
-        <h1>You’re in.</h1>
-        <p className="intro">Welcome, {status.profile.full_name}. You’re signed in with {user.email}.</p>
-        <div className="account-status"><span aria-hidden="true">✓</span> CIT email verified</div>
       </>}
       {status.kind === 'incomplete' && <>
         <h1>Complete your profile.</h1>
