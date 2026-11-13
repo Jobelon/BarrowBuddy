@@ -113,7 +113,7 @@ function ItemDetails({ item, client, studentId, request, onClose }: {
             <span className="student-initial" aria-hidden="true">{owner.charAt(0).toUpperCase() || 'C'}</span>
             <div><strong>{isOwner ? 'Your listing' : owner || 'CIT student'}</strong><p className="student-muted">Verified CIT student</p></div>
           </div>
-          {!isOwner && <div className="student-actions listing-detail-actions">
+          {!isOwner && <div className="listing-detail-request">
             {request}
             <button className="student-secondary" type="button" aria-expanded={chat}
               onClick={() => setChat(!chat)}>{chat ? 'Hide conversation' : 'Send a message'}</button>
@@ -134,12 +134,28 @@ function ListingGrid({ client, studentId, result, empty, quickRequest = false, o
   const [requested, setRequested] = useState<string[]>([])
   const [failed, setFailed] = useState<string | null>(null)
 
-  async function requestItem(item: Listing) {
+  async function requestItem(event: FormEvent<HTMLFormElement>, item: Listing) {
+    event.preventDefault()
     if (busy) return
+    const form = new FormData(event.currentTarget)
+    const start = String(form.get('start_date') ?? '')
+    const end = String(form.get('end_date') ?? '')
+    const meetup = String(form.get('meetup_spot') ?? '').trim()
+    const note = String(form.get('note') ?? '').trim()
+    const startAt = new Date(`${start}T00:00:00`)
+    const endAt = new Date(`${end}T23:59:59`)
+    if (!start || !end || !meetup || !Number.isFinite(startAt.getTime()) || !Number.isFinite(endAt.getTime())
+      || endAt <= startAt || endAt <= new Date() || endAt.getTime() > Date.now() + 90 * 24 * 60 * 60 * 1000) {
+      setFailed(item.id)
+      return
+    }
     setBusy(item.id)
     setFailed(null)
     try {
-      const { error } = await client.rpc('request_item', { p_item_id: item.id })
+      const { error } = await client.rpc('request_item_with_details', {
+        p_item_id: item.id, p_start_at: startAt.toISOString(), p_end_at: endAt.toISOString(),
+        p_meetup_spot: meetup, p_note: note,
+      })
       if (error) throw error
       setRequested((ids) => [...ids, item.id])
     } catch {
@@ -152,12 +168,24 @@ function ListingGrid({ client, studentId, result, empty, quickRequest = false, o
   function requestAction(item: Listing, primary = false) {
     if (item.owner_id === studentId) return <small className="listing-owner">Your listing</small>
     if (requested.includes(item.id)) return <a className="student-secondary" href="/inbox">Request sent · View requests</a>
+    if (!primary) return <button className="student-secondary" type="button"
+      onClick={() => setSelected(item.id)}>Plan a borrow request</button>
     return <>
-      <button className={primary ? 'student-primary' : 'student-secondary'} disabled={busy !== null}
-        type="button" onClick={() => void requestItem(item)}>
-        {busy === item.id ? 'Sending…' : 'Request to borrow'}
-      </button>
-      {failed === item.id && <p className="form-error" role="alert">Couldn’t request this item. It may no longer be available.</p>}
+      <form className="borrow-plan" onSubmit={(event) => void requestItem(event, item)}>
+        <h3>Plan your borrow</h3>
+        <div className="borrow-plan-dates">
+          <label>Start date<input name="start_date" type="date" required disabled={busy !== null} /></label>
+          <label>Return date<input name="end_date" type="date" required disabled={busy !== null} /></label>
+        </div>
+        <label>Campus meetup spot<input name="meetup_spot" type="text" maxLength={120} required
+          placeholder="Where would you like to meet?" disabled={busy !== null} /></label>
+        <label>Note to the lender <span className="student-muted">(optional)</span>
+          <textarea name="note" rows={3} maxLength={1000} placeholder="Tell them what you need the item for or when you can meet."
+            disabled={busy !== null} /></label>
+        <button className="student-primary" type="submit" disabled={busy !== null}>
+          {busy === item.id ? 'Sending…' : 'Send borrow request'}</button>
+        {failed === item.id && <p className="form-error" role="alert">Choose valid dates within the next 90 days, then try again. The item may also be unavailable.</p>}
+      </form>
     </>
   }
 
