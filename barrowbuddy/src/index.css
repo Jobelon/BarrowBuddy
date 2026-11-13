@@ -21,3 +21,15 @@ a { color: var(--wine); }
 button, input { font: inherit; }
 button { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--wine); outline-offset: 3px; }
+
+html.dark { filter: invert(1) hue-rotate(80deg); }
+html.dark img, html.dark video { filter: invert(1) hue-rotate(80deg); }
+
+.dark-toggle {
+  position: fixed; bottom: 16px; right: 16px; z-index: 1000;
+  width: 44px; height: 44px; border-radius: 50%;
+  border: 1px solid var(--line); background: var(--cream);
+  color: var(--wine);
+  display: grid; place-items: center;
+  padding: 0;
+}
