@@ -1,15 +1,61 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+
+type Theme = 'light' | 'dark'
+
+const STORAGE_KEY = 'theme'
+
+function readStoredTheme(): Theme | null {
+  try {
+    const value = window.localStorage.getItem(STORAGE_KEY)
+    return value === 'light' || value === 'dark' ? value : null
+  } catch {
+    return null
+  }
+}
+
+function storeTheme(theme: Theme) {
+  try {
+    window.localStorage.setItem(STORAGE_KEY, theme)
+  } catch {
+  }
+}
+
+function systemTheme(): Theme {
+  try {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  } catch {
+    return 'light'
+  }
+}
+
+function applyTheme(theme: Theme) {
+  document.documentElement.dataset.theme = theme
+}
+
+applyTheme(readStoredTheme() ?? systemTheme())
 
 export function DarkModeToggle() {
-  const [dark, setDark] = useState(() => localStorage.getItem('dark') === '1')
+  const [theme, setTheme] = useState<Theme>(() =>
+    document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light',
+  )
+  const dark = theme === 'dark'
 
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', dark)
-    localStorage.setItem('dark', dark ? '1' : '0')
-  }, [dark])
+  function toggle() {
+    const next: Theme = dark ? 'light' : 'dark'
+    applyTheme(next)
+    storeTheme(next)
+    setTheme(next)
+  }
 
   return (
-    <button className="dark-toggle" onClick={() => setDark(!dark)} aria-label="Toggle dark mode">
+    <button
+      type="button"
+      className="dark-toggle"
+      onClick={toggle}
+      aria-label="Dark mode"
+      aria-pressed={dark}
+      title={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+    >
       <svg
         width="22"
         height="22"
