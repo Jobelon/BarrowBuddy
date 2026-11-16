@@ -134,6 +134,26 @@ function ListingGrid({ client, studentId, result, empty, quickRequest = false, o
   const [requested, setRequested] = useState<string[]>([])
   const [failed, setFailed] = useState<string | null>(null)
 
+  const requestableIds = typeof result === 'object'
+    ? result.items.filter((listing) => listing.owner_id !== studentId).map((listing) => listing.id)
+    : []
+  const requestableKey = requestableIds.join(',')
+
+  useEffect(() => {
+    if (!requestableKey) return
+    let active = true
+    async function loadPending() {
+      const ids = requestableKey.split(',')
+      const { data, error } = await client.from('borrow_requests').select('item_id')
+        .eq('borrower_id', studentId).eq('status', 'pending').in('item_id', ids).limit(ids.length)
+        .overrideTypes<{ item_id: string }[], { merge: false }>()
+      if (!active || error || !data?.length) return
+      setRequested((current) => [...new Set([...current, ...data.map((row) => row.item_id)])])
+    }
+    void loadPending().catch(() => {})
+    return () => { active = false }
+  }, [client, studentId, requestableKey])
+
   async function requestItem(item: Listing) {
     if (busy) return
     setBusy(item.id)
@@ -141,7 +161,7 @@ function ListingGrid({ client, studentId, result, empty, quickRequest = false, o
     try {
       const { error } = await client.rpc('request_item', { p_item_id: item.id })
       if (error) throw error
-      setRequested((ids) => [...ids, item.id])
+      setRequested((ids) => ids.includes(item.id) ? ids : [...ids, item.id])
     } catch {
       setFailed(item.id)
     } finally {
